@@ -495,9 +495,10 @@ int ParseSessionStatus(json_t* status)
 
 bool UsesBrowserStreamingIdentity(const AuthSession& session)
 {
-    if (session.provider.streaming_service_url.find(".aby.") != std::string::npos)
-        return true;
-    return !session.provider.code.empty() && session.provider.code != "NVIDIA";
+    // Since 2026-10-27 every CloudMatch account gets a classic RTSP streamer
+    // for the NATIVE identity, so always present the web client.
+    (void)session;
+    return true;
 }
 
 std::vector<std::string> BuildStreamingIdentityHeaders(const AuthSession& session)

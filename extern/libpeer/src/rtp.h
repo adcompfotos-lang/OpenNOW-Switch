@@ -83,9 +83,14 @@ typedef void (*RtpOnVideoPacket)(const PeerVideoPacket* packet, void* user_data)
 
 // Dynamic 720p frames regularly span more than eight RTP packets. A tiny
 // window turns normal UDP burst reordering into artificial packet loss.
-#define RTP_REORDER_WINDOW 128
-#define RTP_REORDER_MAX_HOLD_PACKETS 64
-#define RTP_REORDER_MAX_HOLD_MS 30
+#define RTP_REORDER_WINDOW 512
+#define RTP_REORDER_MAX_HOLD_PACKETS 384
+#define RTP_REORDER_MAX_HOLD_MS 120
+// Wi-Fi often delivers packets a few milliseconds out of order. Wait this
+// long before treating a hole as loss, and space repeated NACKs so the
+// sender is not flooded with requests for packets already in flight.
+#define RTP_NACK_DELAY_MS 6
+#define RTP_NACK_REPEAT_MS 40
 #define RTP_REORDER_PACKET_CAPACITY (CONFIG_MTU + 256)
 
 struct RtpDecoder {

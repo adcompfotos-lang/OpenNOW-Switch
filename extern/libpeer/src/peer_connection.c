@@ -166,8 +166,11 @@ static void peer_connection_maybe_send_video_nacks(PeerConnection* pc,
     distance = RTP_REORDER_MAX_HOLD_PACKETS;
 
   const uint32_t now_ms = ports_get_epoch_time();
+  if (!decoder->reorder_gap_active ||
+      (uint32_t)(now_ms - decoder->reorder_gap_started_ms) < RTP_NACK_DELAY_MS)
+    return;
   if (pc->video_has_last_nack && pc->video_last_nack_expected == expected &&
-      (uint32_t)(now_ms - pc->video_last_nack_ms) < 10) {
+      (uint32_t)(now_ms - pc->video_last_nack_ms) < RTP_NACK_REPEAT_MS) {
     return;
   }
 

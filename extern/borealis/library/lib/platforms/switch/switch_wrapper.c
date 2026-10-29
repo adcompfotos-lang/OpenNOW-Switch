@@ -34,7 +34,14 @@ void userAppInit()
     {
         cfg.num_bsd_sessions = 12; // default is 3
         cfg.sb_efficiency    = 8; // default is 4
-        socketInitialize(&cfg);
+        // The default 0xA500-byte UDP receive buffer holds ~15 ms of a
+        // 25 Mbps stream; any receive-thread stall then drops packet bursts.
+        cfg.udp_rx_buf_size = 0x40000;
+        if (R_FAILED(socketInitialize(&cfg)))
+        {
+            cfg.udp_rx_buf_size = socketGetDefaultInitConfig()->udp_rx_buf_size;
+            socketInitialize(&cfg);
+        }
     }
     else
     {

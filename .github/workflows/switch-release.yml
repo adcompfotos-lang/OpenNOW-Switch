@@ -13,39 +13,24 @@ concurrency:
 jobs:
   version:
     name: Resolve next release version
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.release.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - name: Increment latest GitHub release
+      - name: Use fixed test version
         id: release
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          existing_tag="$(
-            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-              --jq ".[] | select(.draft == false and .prerelease == false and .target_commitish == \"$GITHUB_SHA\") | .tag_name" \
-              | head -n 1
-          )"
-
-          if [[ "$existing_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            version="${existing_tag#v}"
-          else
-            latest_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || printf 'v0.0.0')"
-            version="$(bash scripts/next-release-version.sh "$latest_tag")"
-          fi
-
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Building OpenNOW Switch v$version"
+          echo "version=0.0.11" >> "$GITHUB_OUTPUT"
+          echo "Building OpenNOW Switch v0.0.11 (ABYA test)"
 
   build:
     name: Build Switch NRO
     needs: version
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     container: devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282
     outputs:
       version: ${{ needs.version.outputs.version }}
@@ -82,7 +67,7 @@ jobs:
     needs:
       - version
       - build
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:

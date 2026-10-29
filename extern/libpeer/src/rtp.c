@@ -47,6 +47,18 @@ static uint16_t read_be16(const uint8_t* data) {
   return (uint16_t)((data[0] << 8) | data[1]);
 }
 
+static void write_be16(uint8_t* data, uint16_t value) {
+  data[0] = (uint8_t)(value >> 8);
+  data[1] = (uint8_t)value;
+}
+
+static void write_be32(uint8_t* data, uint32_t value) {
+  data[0] = (uint8_t)(value >> 24);
+  data[1] = (uint8_t)(value >> 16);
+  data[2] = (uint8_t)(value >> 8);
+  data[3] = (uint8_t)value;
+}
+
 static uint32_t read_be32(const uint8_t* data) {
   return ((uint32_t)data[0] << 24) |
          ((uint32_t)data[1] << 16) |
@@ -822,4 +834,25 @@ int rtp_decoder_decode(RtpDecoder* rtp_decoder, const uint8_t* buf, size_t size)
     return rtp_decoder_decode_reordered(rtp_decoder, buf, size);
 
   return rtp_decoder->decode_func(rtp_decoder, (uint8_t*)buf, size);
+}
+
+int rtp_packet_unwrap_rtx(uint8_t* packet, size_t* size, uint8_t media_payload_type,
+                          uint32_t media_ssrc) {
+  if (!packet || !size)
+    return -1;
+
+  RtpPayloadView view;
+  if (rtp_parse_payload(packet, *size, &view) != 0 || view.payload_size < 2)
+    return -1;
+
+  const uint16_t original_sequence = read_be16(view.payload);
+  const size_t payload_offset = (size_t)(view.payload - packet);
+  memmove(packet + payload_offset, packet + payload_offset + 2,
+          *size - payload_offset - 2);
+  *size -= 2;
+
+  packet[1] = (uint8_t)((packet[1] & 0x80) | (media_payload_type & 0x7f));
+  write_be16(packet + 2, original_sequence);
+  write_be32(packet + 8, media_ssrc);
+  return 0;
 }

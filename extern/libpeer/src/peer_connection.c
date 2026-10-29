@@ -58,6 +58,13 @@ struct PeerConnection {
 
   uint32_t remote_assrc;
   uint32_t remote_vssrc;
+  // Retransmissions arrive on a separate RTX stream (RFC 4588) announced by
+  // the offer's FID group; without unwrapping them every NACK is wasted.
+  uint32_t remote_vrtx_ssrc;
+  int video_rtx_payload_type;
+  uint32_t video_rtx_packets_received;
+  uint32_t video_rtx_packets_recovered;
+  uint32_t video_rtx_packets_invalid;
   uint16_t video_last_nack_expected;
   uint32_t video_last_nack_ms;
   int video_has_last_nack;
@@ -464,6 +471,8 @@ void* peer_connection_get_sctp(PeerConnection* pc) {
 
 PeerConnection* peer_connection_create(PeerConfiguration* config) {
   PeerConnection* pc = calloc(1, sizeof(PeerConnection));
+  if (pc)
+    pc->video_rtx_payload_type = -1;
   if (!pc) {
     return NULL;
   }
@@ -814,6 +823,34 @@ int peer_connection_loop(PeerConnection* pc) {
                                        pc->remote_assrc, rtp->header.type);
             }
             rtp_decoder_decode(&pc->artp_decoder, pc->agent_buf, pc->agent_ret);
+          } else if (pc->video_rtx_payload_type >= 0 &&
+                     rtp->header.type == (uint8_t)pc->video_rtx_payload_type &&
+                     pc->remote_vssrc != 0 && ssrc != pc->remote_vssrc &&
+                     (pc->remote_vrtx_ssrc == 0 || ssrc == pc->remote_vrtx_ssrc)) {
+            if (pc->remote_vrtx_ssrc == 0) {
+              pc->remote_vrtx_ssrc = ssrc;
+              peer_connection_diag_log("learned_video_rtx_ssrc=%" PRIu32, ssrc);
+            }
+            pc->video_rtx_packets_received++;
+            size_t recovered_size = (size_t)pc->agent_ret;
+            if (rtp_packet_unwrap_rtx(pc->agent_buf, &recovered_size, PT_H264,
+                                      pc->remote_vssrc) == 0) {
+              pc->agent_ret = (int)recovered_size;
+              pc->video_rtx_packets_recovered++;
+              rtp_decoder_decode(&pc->vrtp_decoder, pc->agent_buf, pc->agent_ret);
+            } else {
+              pc->video_rtx_packets_invalid++;
+            }
+            if (pc->video_rtx_packets_received <= 4 ||
+                pc->video_rtx_packets_received % 300 == 0) {
+              peer_connection_diag_log(
+                  "rtx received/recovered/invalid=%u/%u/%u pt=%d ssrc=%" PRIu32,
+                  pc->video_rtx_packets_received,
+                  pc->video_rtx_packets_recovered,
+                  pc->video_rtx_packets_invalid,
+                  pc->video_rtx_payload_type,
+                  pc->remote_vrtx_ssrc);
+            }
           } else if (ssrc == pc->remote_vssrc ||
                      (pc->remote_vssrc == 0 &&
                       rtp->header.type != PT_PCMU &&
@@ -943,6 +980,24 @@ void peer_connection_set_remote_description(PeerConnection* pc, const char* sdp,
       ssrc = &pc->remote_vssrc;
     } else if (strstr(buf, "m=audio")) {
       ssrc = &pc->remote_assrc;
+    }
+
+    if (ssrc == &pc->remote_vssrc) {
+      uint32_t fid_primary = 0;
+      uint32_t fid_rtx = 0;
+      if (sscanf(buf, "a=ssrc-group:FID %" SCNu32 " %" SCNu32, &fid_primary, &fid_rtx) == 2 &&
+          pc->remote_vrtx_ssrc == 0) {
+        pc->remote_vrtx_ssrc = fid_rtx;
+        peer_connection_diag_log("remote_video_fid primary=%" PRIu32 " rtx=%" PRIu32,
+                                 fid_primary, fid_rtx);
+      }
+      int rtx_pt = -1;
+      int apt = -1;
+      if (pc->video_rtx_payload_type < 0 &&
+          sscanf(buf, "a=fmtp:%d apt=%d", &rtx_pt, &apt) == 2 && apt == PT_H264) {
+        pc->video_rtx_payload_type = rtx_pt;
+        peer_connection_diag_log("remote_video_rtx_mapping mediaPt=%d rtxPt=%d", apt, rtx_pt);
+      }
     }
 
     if ((val_start = strstr(buf, "a=ssrc:")) && ssrc) {

@@ -172,6 +172,10 @@ int rtp_decoder_decode(RtpDecoder* rtp_decoder, const uint8_t* data, size_t size
 
 void rtp_decoder_poll(RtpDecoder* rtp_decoder);
 
+// Converts an RFC 4588 RTX packet back into its original media RTP packet.
+int rtp_packet_unwrap_rtx(uint8_t* packet, size_t* size, uint8_t media_payload_type,
+                          uint32_t media_ssrc);
+
 uint32_t rtp_get_ssrc(uint8_t* packet);
 
 #endif  // RTP_H_

@@ -68,7 +68,7 @@ std::string BuildSignInUrl(std::string base_url, const std::string& peer_name, c
     if (base_url.size() < 8 || base_url.substr(base_url.size() - 8) != "sign_in")
         base_url += "/sign_in";
 
-    return base_url + "?peer_id=" + peer_name + "&version=3.0&peer_role=1&pairing_id=" + session_id;
+    return base_url + "?peer_id=" + peer_name + "&version=2&peer_role=1&pairing_id=" + session_id;
 }
 
 std::string MakePeerName()

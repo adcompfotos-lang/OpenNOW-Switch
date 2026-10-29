@@ -344,7 +344,9 @@ std::string BuildSessionBody(
     json_object_set_new(req, "enhancedStreamMode", json_integer(1));
     json_object_set_new(
         req, "appLaunchMode",
-        json_integer(ConsoleAppLaunchModeWireValue()));
+        json_integer(client_platform_name == "browser"
+            ? 1
+            : ConsoleAppLaunchModeWireValue()));
     json_object_set_new(req, "secureRTSPSupported", json_false());
     json_object_set_new(req, "partnerCustomData", json_string(""));
     json_object_set_new(req, "accountLinked", json_true());
@@ -442,7 +444,7 @@ std::string CreateNetworkTestSession(
 
     const HttpResponse response = http_client.Post(
         streaming_base_url + "v2/nettestsession",
-        GfnClient::kUserAgent,
+        StreamingUserAgentForPlatform(client_platform_name),
         headers,
         DumpJson(root.get()));
     if (response.status_code < 200 || response.status_code >= 300)
@@ -505,7 +507,7 @@ std::vector<std::string> BuildStreamingIdentityHeaders(const AuthSession& sessio
             "nv-browser-type: CHROME",
             "nv-client-streamer: WEBRTC",
             "nv-client-type: BROWSER",
-            "nv-client-version: 2.0.80.173",
+            "nv-client-version: " + std::string(GfnClient::kCloudMatchClientVersion),
             "nv-device-make: UNKNOWN",
             "nv-device-model: UNKNOWN",
             "nv-device-os: WINDOWS",
@@ -522,6 +524,20 @@ std::vector<std::string> BuildStreamingIdentityHeaders(const AuthSession& sessio
         "nv-device-os: WINDOWS",
         "nv-device-type: DESKTOP",
     };
+}
+
+const char* StreamingUserAgent(const AuthSession& session)
+{
+    return UsesBrowserStreamingIdentity(session)
+        ? GfnClient::kCloudMatchUserAgent
+        : GfnClient::kUserAgent;
+}
+
+const char* StreamingUserAgentForPlatform(const std::string& client_platform_name)
+{
+    return client_platform_name == "browser"
+        ? GfnClient::kCloudMatchUserAgent
+        : GfnClient::kUserAgent;
 }
 
 } // namespace gfn::cloud_session

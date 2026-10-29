@@ -53,6 +53,8 @@ std::string CreateNetworkTestSession(
 // web client to receive a WebRTC rig.
 bool UsesBrowserStreamingIdentity(const AuthSession& session);
 std::vector<std::string> BuildStreamingIdentityHeaders(const AuthSession& session);
+const char* StreamingUserAgent(const AuthSession& session);
+const char* StreamingUserAgentForPlatform(const std::string& client_platform_name);
 int ParseSessionStatus(json_t* status);
 
 } // namespace opennow::gfn::cloud_session

@@ -72,18 +72,14 @@ SessionInfo GfnClient::StartSession(AuthSession& session, const std::string& lau
         "Authorization: GFNJWT " + jwt_token,
         "Content-Type: application/json",
         "nv-client-id: " + client_id_,
-        "nv-browser-type: CHROME",
-        "nv-client-streamer: NVIDIA-CLASSIC",
-        "nv-client-type: NATIVE",
-        "nv-client-version: 2.0.80.173",
-        "nv-device-make: UNKNOWN",
-        "nv-device-model: UNKNOWN",
-        "nv-device-os: WINDOWS",
-        "nv-device-type: DESKTOP",
         "x-device-id: " + device_id,
         "Origin: https://play.geforcenow.com",
         "Referer: https://play.geforcenow.com/"
     };
+    const std::vector<std::string> identity_headers = BuildStreamingIdentityHeaders(session);
+    headers.insert(headers.begin() + 3, identity_headers.begin(), identity_headers.end());
+    const std::string client_platform_name =
+        UsesBrowserStreamingIdentity(session) ? "browser" : "windows";
 
     std::string network_test_session_id;
     std::string network_test_trace;
@@ -93,7 +89,8 @@ SessionInfo GfnClient::StartSession(AuthSession& session, const std::string& lau
             http_client_,
             streaming_base_url,
             headers,
-            stream_settings);
+            stream_settings,
+            client_platform_name);
         network_test_trace = network_test_session_id.empty()
             ? "unavailable; launch will use regional endpoint without a test ID"
             : "created";
@@ -110,7 +107,8 @@ SessionInfo GfnClient::StartSession(AuthSession& session, const std::string& lau
         device_id,
         sub_session_id,
         network_test_session_id,
-        stream_settings);
+        stream_settings,
+        client_platform_name);
     ResetSessionTraceLog("StartSession appId=" + launch_app_id +
                          " store=" + (launch_store.empty() ? "unknown" : launch_store) +
                          " internalTitle=" + (internal_title.empty() ? "missing" : internal_title));
@@ -229,17 +227,11 @@ SessionInfo GfnClient::PollSession(AuthSession& session, const std::string& sess
     std::vector<std::string> headers = {
         "Authorization: GFNJWT " + jwt_token,
         "nv-client-id: " + client_id_,
-        "nv-browser-type: CHROME",
-        "nv-client-streamer: NVIDIA-CLASSIC",
-        "nv-client-type: NATIVE",
-        "nv-client-version: 2.0.80.173",
-        "nv-device-make: UNKNOWN",
-        "nv-device-model: UNKNOWN",
-        "nv-device-os: WINDOWS",
-        "nv-device-type: DESKTOP",
         "x-device-id: " + device_id,
         "Content-Type: application/json"
     };
+    const std::vector<std::string> identity_headers = BuildStreamingIdentityHeaders(session);
+    headers.insert(headers.begin() + 2, identity_headers.begin(), identity_headers.end());
 
     AppendSessionTraceLog("POLL url=" + url);
     AppendSessionTraceLog("POLL headers:\n" + HeadersForTrace(headers));
@@ -341,17 +333,11 @@ void GfnClient::StopSession(AuthSession& session, const std::string& session_id)
     std::vector<std::string> headers = {
         "Authorization: GFNJWT " + jwt_token,
         "nv-client-id: " + client_id_,
-        "nv-browser-type: CHROME",
-        "nv-client-streamer: NVIDIA-CLASSIC",
-        "nv-client-type: NATIVE",
-        "nv-client-version: 2.0.80.173",
-        "nv-device-make: UNKNOWN",
-        "nv-device-model: UNKNOWN",
-        "nv-device-os: WINDOWS",
-        "nv-device-type: DESKTOP",
         "x-device-id: " + device_id,
         "Content-Type: application/json"
     };
+    const std::vector<std::string> identity_headers = BuildStreamingIdentityHeaders(session);
+    headers.insert(headers.begin() + 2, identity_headers.begin(), identity_headers.end());
 
     AppendSessionTraceLog("STOP url=" + url);
     AppendSessionTraceLog("STOP headers:\n" + HeadersForTrace(headers));

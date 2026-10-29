@@ -40,12 +40,19 @@ std::string BuildSessionBody(
     const std::string& device_id,
     const std::string& sub_session_id,
     const std::string& network_test_session_id,
-    const StreamSettings& stream_settings);
+    const StreamSettings& stream_settings,
+    const std::string& client_platform_name = "windows");
 std::string CreateNetworkTestSession(
     const HttpClient& http_client,
     const std::string& streaming_base_url,
     const std::vector<std::string>& headers,
-    const StreamSettings& stream_settings);
+    const StreamSettings& stream_settings,
+    const std::string& client_platform_name = "windows");
+// Alliance partners (e.g. ABYA) pick the streamer from the client identity
+// headers instead of the GSStreamerType metadata, so they must look like the
+// web client to receive a WebRTC rig.
+bool UsesBrowserStreamingIdentity(const AuthSession& session);
+std::vector<std::string> BuildStreamingIdentityHeaders(const AuthSession& session);
 int ParseSessionStatus(json_t* status);
 
 } // namespace opennow::gfn::cloud_session

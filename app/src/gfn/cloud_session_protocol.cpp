@@ -303,7 +303,8 @@ std::string BuildSessionBody(
     const std::string& device_id,
     const std::string& sub_session_id,
     const std::string& network_test_session_id,
-    const StreamSettings& stream_settings)
+    const StreamSettings& stream_settings,
+    const std::string& client_platform_name)
 {
     JsonPtr root(json_object(), &json_decref);
     json_t* req = json_object();
@@ -327,7 +328,7 @@ std::string BuildSessionBody(
     json_object_set_new(req, "clientIdentification", json_string("GFN-PC"));
     json_object_set_new(req, "deviceHashId", json_string(device_id.c_str()));
     json_object_set_new(req, "clientVersion", json_string("30.0"));
-    json_object_set_new(req, "clientPlatformName", json_string("windows"));
+    json_object_set_new(req, "clientPlatformName", json_string(client_platform_name.c_str()));
 
     json_object_set_new(req, "availableSupportedControllers", json_array());
     json_object_set_new(req, "sdkVersion", json_string("1.0"));
@@ -425,7 +426,8 @@ std::string CreateNetworkTestSession(
     const HttpClient& http_client,
     const std::string& streaming_base_url,
     const std::vector<std::string>& headers,
-    const StreamSettings& stream_settings)
+    const StreamSettings& stream_settings,
+    const std::string& client_platform_name)
 {
     JsonPtr root(json_object(), &json_decref);
     json_t* request = json_object();
@@ -434,7 +436,7 @@ std::string CreateNetworkTestSession(
     json_object_set_new(profile, "heightInPixels", json_integer(stream_settings.height));
     json_object_set_new(profile, "framesPerSecond", json_integer(stream_settings.fps));
     json_object_set_new(
-        request, "clientPlatformName", json_string("windows"));
+        request, "clientPlatformName", json_string(client_platform_name.c_str()));
     json_object_set_new(request, "netTestProfile", profile);
     json_object_set_new(root.get(), "netTestRequestData", request);
 
@@ -489,6 +491,38 @@ int ParseSessionStatus(json_t* status)
     return -1;
 }
 
+bool UsesBrowserStreamingIdentity(const AuthSession& session)
+{
+    if (session.provider.streaming_service_url.find(".aby.") != std::string::npos)
+        return true;
+    return !session.provider.code.empty() && session.provider.code != "NVIDIA";
+}
+
+std::vector<std::string> BuildStreamingIdentityHeaders(const AuthSession& session)
+{
+    if (UsesBrowserStreamingIdentity(session)) {
+        return {
+            "nv-browser-type: CHROME",
+            "nv-client-streamer: WEBRTC",
+            "nv-client-type: BROWSER",
+            "nv-client-version: 2.0.80.173",
+            "nv-device-make: UNKNOWN",
+            "nv-device-model: UNKNOWN",
+            "nv-device-os: WINDOWS",
+            "nv-device-type: DESKTOP",
+        };
+    }
+    return {
+        "nv-browser-type: CHROME",
+        "nv-client-streamer: NVIDIA-CLASSIC",
+        "nv-client-type: NATIVE",
+        "nv-client-version: 2.0.80.173",
+        "nv-device-make: UNKNOWN",
+        "nv-device-model: UNKNOWN",
+        "nv-device-os: WINDOWS",
+        "nv-device-type: DESKTOP",
+    };
+}
 
 } // namespace gfn::cloud_session
 } // namespace opennow

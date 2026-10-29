@@ -344,9 +344,7 @@ std::string BuildSessionBody(
     json_object_set_new(req, "enhancedStreamMode", json_integer(1));
     json_object_set_new(
         req, "appLaunchMode",
-        json_integer(client_platform_name == "browser"
-            ? 1
-            : ConsoleAppLaunchModeWireValue()));
+        json_integer(ConsoleAppLaunchModeWireValue()));
     json_object_set_new(req, "secureRTSPSupported", json_false());
     json_object_set_new(req, "partnerCustomData", json_string(""));
     json_object_set_new(req, "accountLinked", json_true());
@@ -495,10 +493,9 @@ int ParseSessionStatus(json_t* status)
 
 bool UsesBrowserStreamingIdentity(const AuthSession& session)
 {
-    // Since 2026-10-27 every CloudMatch account gets a classic RTSP streamer
-    // for the NATIVE identity, so always present the web client.
-    (void)session;
-    return true;
+    if (session.provider.streaming_service_url.find(".aby.") != std::string::npos)
+        return true;
+    return !session.provider.code.empty() && session.provider.code != "NVIDIA";
 }
 
 std::vector<std::string> BuildStreamingIdentityHeaders(const AuthSession& session)
